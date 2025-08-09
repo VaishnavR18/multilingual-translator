@@ -1,0 +1,6 @@
+{
+  "files.exclude": {
+    "app.py": true,
+    ".vscode": true
+  }
+}

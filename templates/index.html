@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Language Translator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;  
+            background-color: #f0f0f0;
+            text-align: center;
+            padding: 50px;
+        }
+        h1 {
+            color: #ff0000;
+            animation: slideIn 1s ease-in-out;
+        }
+        .container {
+            width: 50%;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            animation: slideUp 1s ease-in-out;
+        }
+        select, textarea {
+            margin: 10px;
+            padding: 10px;
+            width: 100%;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+            animation: buttonFadeIn 2s ease-in-out;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result-text {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e0e0e0;
+            width: 100%;
+            height: 150px;
+            margin: 0 auto;
+            border-radius: 5px;
+            font-size: 16px;
+            display: block;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+        }
+        .error {
+            color: red;
+        }
+
+        /* CSS Animations */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(-100%);
+        }
+        to {
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes buttonFadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    </style>
+</head>
+<body>
+
+<h1>Language Translator</h1>
+<div class="container">
+    <form action="/translate" method="get">
+        <label for="source_language">Source Language:</label>
+        <select id="source_language" name="source_language" required>
+            {% for code, name in languages %}
+                <option value="{{ code }}" {% if code == source_language %} selected {% endif %}>
+                    {{ name }}
+                </option>
+            {% endfor %}
+        </select><br>
+
+        <label for="target_language">Target Language:</label>
+        <select id="target_language" name="target_language" required>
+            {% for code, name in languages %}
+                <option value="{{ code }}" {% if code == target_language %} selected {% endif %}>
+                    {{ name }}
+                </option>
+            {% endfor %}
+        </select><br>
+
+        <label for="text_to_translate"><h4>Text:</h4></label><br>
+        <textarea id="text_to_translate" name="text_to_translate" rows="4" required></textarea><br><br>
+
+        <button onclick="startSpeechRecognition()">🎤 Record Speech</button>
+        <button type="submit">Translate</button>
+    </form>
+
+    {% if translated_text %}
+        <label for="translated_text_area"><h4>Translation:</h4></label>
+        <textarea id="translated_text_area" rows="4" readonly>{{ translated_text }}</textarea><br>
+
+        <label>Listen to Translation:</label>
+        <audio controls>
+            <source src="{{ url_for('static', filename='translated_audio.mp3') }}" type="audio/mp3">
+            Your browser does not support the audio element.
+            <div id="statusMessage" style="color: green;"></div>
+        </audio>
+        
+    {% elif error %}
+        <div class="result-text error">
+            <strong>Error:</strong><br>
+            {{ error }}
+        </div>
+    {% endif %}
+</div>
+<script>
+        function startSpeechRecognition() {
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = document.getElementById("source_language").value;
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = function() {
+            alert("🎤 Speak now...");
+        };
+
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            document.getElementById("text_to_translate").value = transcript;
+        };
+
+        recognition.onerror = function(event) {
+            alert("Speech recognition error: " + event.error);
+        };
+
+        recognition.start();
+    }
+</script>
+
+</body>
+</html>

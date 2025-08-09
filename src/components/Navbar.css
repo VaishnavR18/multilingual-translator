@@ -1,0 +1,159 @@
+/* Glassmorphic Navbar */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 30px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 0 0 15px 15px;
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: white;
+  user-select: none;
+}
+
+.navbar-logo a {
+  font-weight: 900;
+  font-size: 1.8rem;
+  text-decoration: none;
+  color: white;
+  letter-spacing: 2px;
+  user-select: none;
+  cursor: pointer;
+}
+
+.logo-highlight {
+  color: #042425;
+  text-shadow: 0 0 8px #00f2fe;
+}
+
+.navbar-links {
+  display: flex;
+  gap: 28px;
+}
+
+.nav-link {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: white;
+  text-decoration: none;
+  transition: color 0.3s ease;
+  padding: 6px 0;
+  position: relative;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  width: 0%;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background: #10494d;
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+.nav-link:hover,
+.nav-link:focus {
+  color: #063638;
+}
+
+.nav-link:hover::after,
+.nav-link:focus::after {
+  width: 100%;
+}
+
+.navbar-auth {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  max-width: 400px; /* increased width for buttons */
+  overflow: visible;
+  flex-shrink: 0;
+}
+
+.btn {
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 8px 24px; /* added horizontal padding */
+  border-radius: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: white;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+  user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0; 
+  min-width: 250px; 
+}
+
+.login-btn {
+  background: linear-gradient(90deg, #05ee2b, #00cc22);
+  box-shadow: 0 0 20px #00cc1b;
+}
+
+.login-btn:hover,
+.login-btn:focus {
+  background: linear-gradient(90deg, #00cc66, #00ff99);
+  box-shadow: 0 0 30px #00ff99;
+}
+
+.logout-btn {
+  background: linear-gradient(90deg, #eb0808, #e70606);
+  box-shadow: 0 0 20px #e00505;
+  min-width: 120px; /* a bit wider for logout */
+}
+
+.logout-btn:hover,
+.logout-btn:focus {
+  background: linear-gradient(90deg, #e70303, #ee1010);
+  box-shadow: 0 0 30px #ee0404;
+}
+
+.icon {
+  font-size: 1.25rem;
+  display: inline-block;
+  pointer-events: none;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  max-width: 250px;
+  overflow: visible;
+  text-overflow: clip;
+  flex-shrink: 1;
+}
+
+.user-icon {
+  font-size: 1.3rem;
+  color: #032f31;
+}
+
+/* Responsive: stack nav-links and auth on small screens */
+@media (max-width: 600px) {
+  .navbar {
+    flex-wrap: wrap;
+    padding: 15px 20px;
+  }
+
+  .navbar-links {
+    width: 100%;
+    justify-content: center;
+    margin: 12px 0;
+  }
+}

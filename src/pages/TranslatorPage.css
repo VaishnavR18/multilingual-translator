@@ -1,0 +1,225 @@
+/* Background animated gradient */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.translator-3d-wrapper {
+  height: 100vh;
+  width: 100%;
+  background: linear-gradient(-45deg, #2b1055, #7597de, #1e3c72, #2b1055);
+  background-size: 400% 400%;
+  animation: gradientShift 30s ease infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.float-bubble {
+  position: absolute;
+  font-size: 2rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.05);
+  animation: floatIt 30s linear infinite;
+  top: calc(100% * var(--i) / 15);
+  left: calc(100% * var(--i) / 12);
+  user-select: none;
+  pointer-events: none;
+}
+
+@keyframes floatIt {
+  0% {
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    transform: translateY(-50vh) rotate(180deg);
+  }
+  100% {
+    transform: translateY(0) rotate(360deg);
+  }
+}
+
+.translator-3d-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  padding: 40px;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 700px;
+  color: white;
+  text-align: center;
+  transform-style: preserve-3d;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: transform 0.2s ease;
+  will-change: transform;
+}
+
+.translator-3d-card h1 {
+  font-size: 28px;
+  margin-bottom: 20px;
+  user-select: none;
+}
+
+.selectors {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.selectors select {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 16px;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.selectors select:hover,
+.selectors select:focus {
+  background: #fff;
+  outline: none;
+}
+
+textarea {
+  width: 100%;
+  height: 120px;
+  padding: 15px;
+  border-radius: 14px;
+  font-size: 16px;
+  border: none;
+  margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #111;
+  resize: none;
+  font-family: inherit;
+}
+
+.waveform-canvas {
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  width: 100%;
+  height: 80px;
+}
+
+.btn-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.glow-btn {
+  padding: 12px 25px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 40px;
+  background: linear-gradient(to right, #00c6ff, #0072ff);
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(0, 114, 255, 0.6);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.glow-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0, 114, 255, 0.9);
+}
+
+.icon-btn {
+  padding: 10px 14px;
+  border-radius: 50%;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  cursor: pointer;
+  color: #333;
+  transition: transform 0.2s ease, background 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  transform: scale(1.1);
+  background: #fff;
+}
+
+.upload {
+  display: flex;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.upload input[type="file"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+}
+
+.output-box {
+  background: rgba(255, 255, 255, 0.9);
+  color: #111;
+  padding: 20px;
+  border-radius: 12px;
+  min-height: 100px;
+  font-size: 16px;
+  white-space: pre-wrap;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+  user-select: text;
+}
+
+.error-msg {
+  color: #ffcccc;
+  background: rgba(255, 0, 0, 0.3);
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.speak-btn {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 15px;
+  font-weight: bold;
+  border-radius: 50px;
+  background: #00ff99;
+  color: #111;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 10px #00ff99;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.speak-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 20px #00ff99;
+}
+

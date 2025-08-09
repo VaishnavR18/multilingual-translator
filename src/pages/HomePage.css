@@ -1,0 +1,301 @@
+/* --- Container & Background --- */
+.homepage-container {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+  color: white;
+  overflow-x: hidden;
+  position: relative;
+  min-height: 100vh;
+  padding-bottom: 120px;
+}
+
+/* --- Floating Languages --- */
+.floating-word {
+  position: absolute;
+  font-size: 36px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.06);
+  user-select: none;
+  pointer-events: none;
+  animation: floatLang 40s linear infinite;
+  top: calc(100% * var(--i) / 7);
+  left: calc(100% * var(--i) / 8);
+}
+
+@keyframes floatLang {
+  0% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-120vh) rotate(180deg); }
+  100% { transform: translateY(0) rotate(360deg); }
+}
+
+/* --- 3D Globe Canvas --- */
+.globe-canvas-wrapper {
+  width: 100%;
+  height: 350px;
+  max-width: 900px;
+  margin: 40px auto 20px auto;
+  border-radius: 20px;
+  box-shadow: 0 0 25px #00f2fe88;
+  background: #0a1c2e;
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
+}
+
+.globe-canvas-wrapper:active {
+  cursor: grabbing;
+}
+
+/* Globe labels in 3D */
+.globe-label {
+  font-size: 0.9rem;
+  color: #00f2fe;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: rgba(0, 242, 254, 0.2);
+  border-radius: 8px;
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* --- Hero Section --- */
+.hero-section {
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 80px auto;
+  padding: 0 20px;
+}
+
+.hero-section h1 {
+  font-size: 3.4rem;
+  font-weight: 900;
+  margin-bottom: 15px;
+}
+
+.hero-section .highlight {
+  background: linear-gradient(90deg, #00f2fe, #4facfe);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-section p {
+  font-size: 1.4rem;
+  margin-bottom: 25px;
+  color: #b9d6e4;
+}
+
+.hero-cta {
+  display: inline-block;
+  background: linear-gradient(to right, #00f2fe, #4facfe);
+  padding: 16px 32px;
+  font-size: 1.25rem;
+  border-radius: 40px;
+  color: white;
+  text-decoration: none;
+  box-shadow: 0 0 25px #00f2fe99;
+  transition: 0.3s ease;
+}
+
+.hero-cta:hover {
+  box-shadow: 0 0 40px #00f2feee;
+  transform: scale(1.1);
+}
+
+/* --- How It Works --- */
+.how-it-works {
+  background: #111;
+  padding: 60px 20px;
+  text-align: center;
+  max-width: 900px;
+  margin: 0 auto 80px auto;
+  border-radius: 20px;
+  box-shadow: 0 0 25px #00f2fe99;
+}
+
+.how-it-works h2 {
+  font-size: 2.4rem;
+  color: #00f2fe;
+  margin-bottom: 40px;
+}
+
+.steps {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.step {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 30px;
+  border-radius: 16px;
+  flex: 1;
+  min-width: 250px;
+  box-shadow: 0 0 15px #00f2fe66;
+  user-select: none;
+  cursor: default;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.step:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px #00f2fecc;
+}
+
+.step-icon {
+  font-size: 2.4rem;
+  margin-bottom: 12px;
+}
+
+/* --- Use Cases --- */
+.use-cases {
+  background: #1a1a1a;
+  padding: 60px 20px;
+  text-align: center;
+  max-width: 900px;
+  margin: 0 auto 80px auto;
+  border-radius: 20px;
+  box-shadow: 0 0 25px #00ffcc99;
+}
+
+.use-cases h2 {
+  font-size: 2.4rem;
+  color: #00ffcc;
+  margin-bottom: 35px;
+}
+
+.use-cards {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.use-card {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 25px;
+  border-radius: 16px;
+  flex: 1;
+  max-width: 280px;
+  box-shadow: 0 0 15px #00ffcc66;
+  user-select: none;
+  cursor: default;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.use-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px #00ffcccc;
+}
+
+.use-icon {
+  font-size: 2.2rem;
+  margin-bottom: 10px;
+}
+
+/* Typing cursor effect */
+.typing-text::after {
+  content: "|";
+  display: inline-block;
+  animation: blink 1.2s steps(2, start) infinite;
+  margin-left: 2px;
+  color: #00ffcc;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+.newsletter-signup {
+  background: linear-gradient(135deg, #00f2fe, #4facfe);
+  padding: 60px 20px;
+  text-align: center;
+  border-radius: 20px;
+  margin: 60px auto;
+  max-width: 600px;
+  box-shadow: 0 0 30px rgba(0, 242, 254, 0.6);
+  color: #111;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.newsletter-signup h2 {
+  font-size: 2.4rem;
+  margin-bottom: 15px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 6px rgba(255,255,255,0.7);
+}
+
+.newsletter-signup p {
+  font-size: 1.1rem;
+  margin-bottom: 30px;
+  color: #e0f7ff;
+}
+
+.newsletter-form {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.newsletter-form input[type="email"] {
+  padding: 14px 20px;
+  border-radius: 50px;
+  border: none;
+  width: 300px;
+  max-width: 90vw;
+  font-size: 1rem;
+  outline: none;
+  transition: box-shadow 0.3s ease;
+}
+
+.newsletter-form input[type="email"]:focus {
+  box-shadow: 0 0 10px #00f2fe;
+}
+
+.newsletter-form button {
+  padding: 14px 30px;
+  background: #fff;
+  color: #00aaff;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 50px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 15px #00f2fe;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.newsletter-form button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 25px #00cfff;
+}
+
+
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  .steps, .use-cards {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .step, .use-card {
+    max-width: 100%;
+  }
+
+  .hero-section h1 {
+    font-size: 2.6rem;
+  }
+
+  .floating-word {
+    font-size: 24px;
+  }
+
+  .globe-canvas-wrapper {
+    height: 280px;
+  }
+}
