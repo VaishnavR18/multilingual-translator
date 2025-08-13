@@ -1,4 +1,4 @@
-# app.py  (CPU-optimized)
+# app.py  -- CPU-friendly, uses faster-whisper (if available) for ASR
 import os
 import uuid
 import traceback
@@ -16,24 +16,33 @@ Path(AUDIO_DIR).mkdir(parents=True, exist_ok=True)
 app = Flask(__name__)
 CORS(app)
 
-DEVICE = "cpu"  # force CPU mode explicitly
-print("[init] Running on CPU")
+DEVICE = "cpu"
+print("[init] Running on CPU (DEVICE =", DEVICE, ")")
 
 # -------------------------
 # Optional libs detection
 # -------------------------
+# Prefer faster-whisper for speed on CPU (with int8 quant)
+HAVE_FASTER_WHISPER = False
+HAVE_WHISPER = False
+try:
+    from faster_whisper import WhisperModel
+    HAVE_FASTER_WHISPER = True
+    print("[init] faster-whisper available (preferred for CPU ASR)")
+except Exception:
+    print("[init] faster-whisper NOT available (install via 'pip install faster-whisper')")
+
 try:
     import whisper as openai_whisper
     HAVE_WHISPER = True
-    print("[init] openai/whisper available")
+    print("[init] openai/whisper available (fallback ASR)")
 except Exception:
-    HAVE_WHISPER = False
     print("[init] openai/whisper NOT available - install via 'pip install -U openai-whisper'")
 
 try:
     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
     HAVE_TRANSFORMERS = True
-    print("[init] transformers available")
+    print("[init] transformers available (MT)")
 except Exception:
     HAVE_TRANSFORMERS = False
     print("[init] transformers NOT available - install via 'pip install transformers sentencepiece'")
@@ -41,12 +50,11 @@ except Exception:
 try:
     from gtts import gTTS
     HAVE_GTTS = True
-    print("[init] gTTS available (will use for TTS)")
+    print("[init] gTTS available (TTS fallback)")
 except Exception:
     HAVE_GTTS = False
     print("[init] gTTS NOT available - install via 'pip install gTTS'")
 
-# optionally soundfile for saving wavs if you add Coqui later
 try:
     import soundfile as sf
     HAVE_SOUNDFILE = True
@@ -57,38 +65,63 @@ except Exception:
 # Model registry (lazy)
 # -------------------------
 MODEL_STORE = {
-    "asr": None,    # whisper model (openai) - small by default
-    "mt": None,     # m2m100 tokenizer+model
+    "asr": None,    # WhisperModel (faster-whisper) or openai whisper model
+    "mt": None,
 }
 
-# choose CPU-friendly sizes
-WHISPER_MODEL_NAME = "small"  # change to "medium" if you want slightly better accuracy and have CPU resources
-MT_MODEL_NAME = "facebook/m2m100_418M"  # CPU-friendly general multilingual model
+# CPU-friendly choices (you can change)
+# For faster-whisper, available model names: "small", "medium", etc. The 'small' family runs faster.
+WHISPER_FAST_MODEL = "small"  # faster-whisper model name (small/medium)
+# For openai-whisper fallback use "small" as well
+WHISPER_OPENAI_NAME = "small"
+
+MT_MODEL_NAME = "facebook/m2m100_418M"  # existing multilingual model (keeps compatibility)
 
 # -------------------------
-# ASR helpers
+# ASR helpers (faster-whisper preferred)
 # -------------------------
 def load_asr():
+    """Load either faster-whisper WhisperModel or openai whisper model (lazy)."""
     if MODEL_STORE["asr"] is not None:
         return MODEL_STORE["asr"]
-    if not HAVE_WHISPER:
-        raise RuntimeError("Whisper library not installed.")
-    print(f"[load_asr] loading Whisper model '{WHISPER_MODEL_NAME}' (CPU). This may take a while...")
-    model = openai_whisper.load_model(WHISPER_MODEL_NAME)  # runs on CPU by default when torch.device is CPU
-    MODEL_STORE["asr"] = model
-    print("[load_asr] loaded whisper model")
-    return model
+
+    if HAVE_FASTER_WHISPER:
+        print(f"[load_asr] loading faster-whisper model '{WHISPER_FAST_MODEL}' (cpu, int8).")
+        # compute_type int8 quantized model for CPU
+        model = WhisperModel(WHISPER_FAST_MODEL, device="cpu", compute_type="int8")
+        MODEL_STORE["asr"] = ("faster", model)
+        print("[load_asr] loaded faster-whisper model")
+        return MODEL_STORE["asr"]
+
+    if HAVE_WHISPER:
+        print(f"[load_asr] loading openai whisper model '{WHISPER_OPENAI_NAME}' (CPU).")
+        model = openai_whisper.load_model(WHISPER_OPENAI_NAME)
+        MODEL_STORE["asr"] = ("openai", model)
+        print("[load_asr] loaded openai whisper model")
+        return MODEL_STORE["asr"]
+
+    raise RuntimeError("No ASR backend available. Install faster-whisper or openai-whisper.")
 
 def transcribe_audio(filepath: str) -> Tuple[str, Optional[str]]:
     """
     Returns (transcription_text, detected_language_code)
+    Uses faster-whisper if available, otherwise openai whisper.
     """
-    model = load_asr()
-    # whisper.transcribe will auto-detect language and return 'language'
-    result = model.transcribe(filepath)
-    text = result.get("text", "").strip()
-    detected_lang = result.get("language", None)
-    return text, detected_lang
+    backend, model = load_asr()
+    if backend == "faster":
+        # faster-whisper returns segments and info
+        # We will join segments into text and return info.language if present
+        segments, info = model.transcribe(filepath, beam_size=5)
+        full_text = "".join([segment.text for segment in segments]).strip()
+        detected_lang = getattr(info, "language", None)
+        # faster-whisper language codes are typically like 'en' etc.
+        return full_text, detected_lang
+    else:
+        # openai whisper fallback
+        result = model.transcribe(filepath)
+        text = result.get("text", "").strip()
+        detected_lang = result.get("language", None)
+        return text, detected_lang
 
 # -------------------------
 # MT helpers (M2M100)
@@ -98,39 +131,34 @@ def load_mt():
         return MODEL_STORE["mt"]
     if not HAVE_TRANSFORMERS:
         raise RuntimeError("Transformers not installed.")
-    print(f"[load_mt] loading MT model '{MT_MODEL_NAME}' (CPU). This will download weights if not cached.")
+    print(f"[load_mt] loading MT model '{MT_MODEL_NAME}' (CPU). This may download weights if not cached.")
     tokenizer = AutoTokenizer.from_pretrained(MT_MODEL_NAME)
     model = AutoModelForSeq2SeqLM.from_pretrained(MT_MODEL_NAME)
-    # keep on CPU
     MODEL_STORE["mt"] = {"tokenizer": tokenizer, "model": model}
     print("[load_mt] loaded MT model")
     return MODEL_STORE["mt"]
 
 def translate_text_m2m100(text: str, source_lang: Optional[str], target_lang: str) -> str:
     """
-    Translate using m2m100_418M. source_lang/target_lang are two-letter codes (e.g., 'en', 'hi', 'te').
-    If source_lang is None or 'auto', we let the tokenizer/model handle it.
+    Translate using m2m100_418M.
+    source_lang/target_lang are two-letter codes (e.g., 'en','hi'). For best results, pass known codes.
     """
     entry = load_mt()
     tokenizer = entry["tokenizer"]
     model = entry["model"]
 
-    # Set tokenizer src_lang if we know it (tokenizer expects language codes like 'en', 'hi' etc.)
+    # set src_lang if given
     if source_lang and source_lang != "auto":
         try:
             tokenizer.src_lang = source_lang
         except Exception:
-            # some tokenizer versions allow setting this; ignore if not supported
             pass
 
-    # encode and generate (CPU - smaller max_length)
     encoded = tokenizer(text, return_tensors="pt", truncation=True).to("cpu")
-    # forced_bos_token_id expects language id. m2m100's tokenizer has method get_lang_id in some versions.
     forced_bos = None
     try:
         forced_bos = tokenizer.get_lang_id(target_lang)
     except Exception:
-        # fallback: some transformers versions expect token like "<2en>" etc. Let generate without forced BOS if unavailable.
         forced_bos = None
 
     with torch.no_grad():
@@ -154,7 +182,6 @@ def synthesize_tts_gtts(text: str, lang_code: str) -> str:
         tts.save(out_path)
         return out_path
     except Exception as e:
-        # ensure no partial file left
         if os.path.exists(out_path):
             try:
                 os.remove(out_path)
@@ -162,12 +189,16 @@ def synthesize_tts_gtts(text: str, lang_code: str) -> str:
                 pass
         raise
 
+# NOTE: if you want to use Coqui TTS offline, you can implement a synthesize_tts_coqui(text, lang)
+# using the TTS package (pip install TTS) and choose a small multilingual model.
+# I left gTTS as default because it's lightweight and reliable.
+
 # -------------------------
-# Routes
+# Routes (same contract as before)
 # -------------------------
 @app.route("/")
 def home():
-    return jsonify({"message": "CPU Speech-to-Speech Translator (Whisper small + m2m100_418M + gTTS)"}), 200
+    return jsonify({"message": "CPU Speech-to-Speech Translator (faster-whisper + m2m100_418M + gTTS)"}), 200
 
 @app.route("/speech-to-speech", methods=["POST"])
 def speech_to_speech():
@@ -199,29 +230,25 @@ def speech_to_speech():
             src_lang = detected_lang or "en"
 
         # 2) Translate (MT)
-        # If source==target, skip translation
         if src_lang and src_lang != "auto" and src_lang == target_lang:
             translated_text = transcription
         else:
             translated_text = translate_text_m2m100(transcription, src_lang, target_lang)
 
         # 3) TTS (gTTS)
-        # gTTS expects language codes like 'hi', 'en', 'te' - for some languages gTTS may not support them.
         try:
             tts_path = synthesize_tts_gtts(translated_text, target_lang)
         except Exception as e:
-            # If gTTS fails for this language, fall back to English TTS to avoid complete failure
+            # fallback to English TTS
             try:
                 tts_path = synthesize_tts_gtts(translated_text, "en")
             except Exception as e2:
-                # cleanup input
                 try:
                     os.remove(in_path)
                 except:
                     pass
                 return jsonify({"error": f"TTS failed: {str(e)} ; fallback failed: {str(e2)}"}), 500
 
-        # remove input file (keep generated audio)
         try:
             os.remove(in_path)
         except:
@@ -265,14 +292,12 @@ def text_to_speech():
             else:
                 translated_text = text
         else:
-            # no translation
             translated_text = text
 
         # Synthesize
         try:
             tts_path = synthesize_tts_gtts(translated_text, target_lang)
         except Exception as e:
-            # fallback to English TTS
             try:
                 tts_path = synthesize_tts_gtts(translated_text, "en")
             except Exception as e2:
