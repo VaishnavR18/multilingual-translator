@@ -138,7 +138,7 @@ const HomePage = () => {
         <h2>How It Works</h2>
         <motion.div className="steps">
           {[
-            { icon: "🎤", title: "Speak / Type", desc: "Input your message or upload a text file." },
+            { icon: "🎤", title: "Speak / Type", desc: "Input your message or upload audio." },
             { icon: "🤖", title: "AI Translation", desc: "Our smart AI translates it in real-time." },
             { icon: "🌍", title: "Understand", desc: "Get results you can read or hear aloud." },
           ].map(({ icon, title, desc }, i) => (
