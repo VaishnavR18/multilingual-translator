@@ -18,9 +18,9 @@
   background-size: 400% 400%;
   animation: gradientShift 30s ease infinite;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  overflow: hidden;
+  overflow: auto;
   position: relative;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
@@ -53,21 +53,23 @@
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(14px);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-  padding: 40px;
+  padding: 50px;
   border-radius: 20px;
   width: 90%;
-  max-width: 700px;
+  max-width: 740px;
   color: white;
   text-align: center;
   transform-style: preserve-3d;
   border: 1px solid rgba(255, 255, 255, 0.2);
   transition: transform 0.2s ease;
   will-change: transform;
+  overflow-y: auto;
+  overflow: auto;
 }
 
 .translator-3d-card h1 {
-  font-size: 28px;
-  margin-bottom: 20px;
+  font-size: 32px;
+  margin-bottom: 24px;
   user-select: none;
 }
 

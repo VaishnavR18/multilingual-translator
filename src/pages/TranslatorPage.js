@@ -1,21 +1,28 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaMicrophone, FaVolumeUp, FaTrash, FaUpload, FaStop } from "react-icons/fa";
+import { FaMicrophone, FaVolumeUp, FaTrash, FaUpload, FaStop, FaPlay, FaPause, FaDownload } from "react-icons/fa";
 import "./TranslatorPage.css";
+
+const API_BASE = "http://localhost:5000"; // change if your backend host/port differs
 
 const TranslatorPage = () => {
   const [text, setText] = useState("");
   const [translatedText, setTranslatedText] = useState("");
-  const [displayedText, setDisplayedText] = useState(""); 
+  const [displayedText, setDisplayedText] = useState("");
   const [sourceLanguage, setSourceLanguage] = useState("auto");
   const [targetLanguage, setTargetLanguage] = useState("hi");
   const [isTranslating, setIsTranslating] = useState(false);
   const [error, setError] = useState("");
 
+  // backend audio controls
+  const [audioUrl, setAudioUrl] = useState(""); // full url: API_BASE + relative path from backend
+  const audioRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // recording & UI refs (unchanged)
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
-
   const cardRef = useRef(null);
   const canvasRef = useRef(null);
   const animationIdRef = useRef(null);
@@ -42,25 +49,41 @@ const TranslatorPage = () => {
     ml: "Malayalam",
   };
 
-  const handleMouseMove = (e) => {
-    const card = cardRef.current;
-    if (!card) return;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    const rotateX = ((y - centerY) / centerY) * 10;
-    const rotateY = ((x - centerX) / centerX) * 10;
-    card.style.transform = `perspective(600px) rotateX(${-rotateX}deg) rotateY(${rotateY}deg)`;
+  // wire audio element events to UI state
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onEnded = () => setIsPlaying(false);
+    a.addEventListener("play", onPlay);
+    a.addEventListener("pause", onPause);
+    a.addEventListener("ended", onEnded);
+    return () => {
+      a.removeEventListener("play", onPlay);
+      a.removeEventListener("pause", onPause);
+      a.removeEventListener("ended", onEnded);
+    };
+  }, [audioRef.current]);
+
+  // play/pause toggle for backend audio
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) audioRef.current.pause();
+    else audioRef.current.play().catch((e) => setError("Playback failed: " + e.message));
   };
 
-  const handleMouseLeave = () => {
-    const card = cardRef.current;
-    if (!card) return;
-    card.style.transform = `perspective(600px) rotateX(0deg) rotateY(0deg)`;
+  const downloadAudio = () => {
+    if (!audioUrl) return;
+    const a = document.createElement("a");
+    a.href = audioUrl;
+    a.download = audioUrl.split("/").pop();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
 
+  // recording handlers (kept same)
   const startRecording = async () => {
     setError("");
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -69,7 +92,11 @@ const TranslatorPage = () => {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      try {
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      } catch {
+        mediaRecorderRef.current = new MediaRecorder(stream);
+      }
       audioChunksRef.current = [];
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
@@ -93,30 +120,118 @@ const TranslatorPage = () => {
     const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
     const formData = new FormData();
     formData.append("audio", audioBlob, "recording.webm");
+    formData.append("target_language", (targetLanguage || "hi").trim().toLowerCase());
 
     try {
       setError("");
       setIsTranslating(true);
       setTranslatedText("");
       setDisplayedText("");
-      const response = await fetch("http://localhost:5000/speech-to-speech", {
+      setAudioUrl("");
+
+      const response = await fetch(`${API_BASE}/speech-to-speech`, {
         method: "POST",
         body: formData,
       });
       const data = await response.json();
+
       if (response.ok && data.audio_url) {
-        setTranslatedText(data.transcription || "");
-        const audio = new Audio(data.audio_url);
-        audio.play();
+        setTranslatedText(data.translated_text || data.transcription || "");
+        const full = `${API_BASE}${data.audio_url}`;
+        setAudioUrl(full);
+        // try autoplay, but user can use play button
+        if (audioRef.current) {
+          audioRef.current.src = full;
+          audioRef.current.play().catch(() => {});
+        } else {
+          new Audio(full).play().catch(() => {});
+        }
       } else {
         setError(data.error || "Failed to process speech.");
       }
     } catch (err) {
       setError("Connection error.");
+    } finally {
+      setIsTranslating(false);
     }
-    setIsTranslating(false);
   };
 
+  // text -> translate -> backend TTS
+  const handleTranslate = async () => {
+    if (!text.trim()) {
+      setError("Please enter or record some text to translate.");
+      return;
+    }
+    setError("");
+    setIsTranslating(true);
+    setTranslatedText("");
+    setDisplayedText("");
+    setAudioUrl("");
+
+    try {
+      const response = await fetch(`${API_BASE}/text-to-speech`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source_language: sourceLanguage,
+          target_language: targetLanguage,
+          text,
+        }),
+      });
+      const data = await response.json();
+
+      if (response.ok && data.audio_url) {
+        setTranslatedText(data.translated_text || text);
+        const full = `${API_BASE}${data.audio_url}`;
+        setAudioUrl(full);
+        if (audioRef.current) {
+          audioRef.current.src = full;
+          audioRef.current.play().catch(() => {});
+        } else {
+          new Audio(full).play().catch(() => {});
+        }
+      } else {
+        setError(data.error || "Translation failed.");
+      }
+    } catch (err) {
+      setError("Connection error.");
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  // file upload flow (kept same)
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("audio", file);
+    formData.append("target_language", (targetLanguage || "hi").trim().toLowerCase());
+    setAudioUrl("");
+    fetch(`${API_BASE}/speech-to-speech`, {
+      method: "POST",
+      body: formData,
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.audio_url) {
+          setTranslatedText(data.translated_text || data.transcription || "");
+          const full = `${API_BASE}${data.audio_url}`;
+          setAudioUrl(full);
+          if (audioRef.current) {
+            audioRef.current.src = full;
+            audioRef.current.play().catch(() => {});
+          } else {
+            new Audio(full).play().catch(() => {});
+          }
+        } else {
+          setError(data.error || "Failed to process audio file.");
+        }
+      })
+      .catch(() => setError("Connection error."));
+  };
+
+  // animate typed display of translated text
   useEffect(() => {
     if (!translatedText) {
       setDisplayedText("");
@@ -132,58 +247,23 @@ const TranslatorPage = () => {
     return () => clearInterval(interval);
   }, [translatedText]);
 
-  const handleTranslate = async () => {
-    if (!text.trim()) {
-      setError("Please enter or record some text to translate.");
-      return;
-    }
-    setError("");
-    setIsTranslating(true);
-    setTranslatedText("");
-    setDisplayedText("");
-    try {
-      const response = await fetch("http://localhost:5000/text-to-speech", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source_language: sourceLanguage,
-          target_language: targetLanguage,
-          text,
-        }),
-      });
-      const data = await response.json();
-      if (response.ok && data.audio_url) {
-        setTranslatedText(data.translated_text || "");
-        const audio = new Audio(data.audio_url);
-        audio.play();
-      } else {
-        setError(data.error || "Translation failed.");
-      }
-    } catch (err) {
-      setError("Connection error.");
-    }
-    setIsTranslating(false);
+  // waveform / UI handlers (kept unchanged)
+  const handleMouseMove = (e) => {
+    const card = cardRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = ((y - centerY) / centerY) * 10;
+    const rotateY = ((x - centerX) / centerX) * 10;
+    card.style.transform = `perspective(600px) rotateX(${-rotateX}deg) rotateY(${rotateY}deg)`;
   };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append("audio", file);
-    fetch("http://localhost:5000/speech-to-speech", {
-      method: "POST",
-      body: formData,
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.audio_url) {
-          setTranslatedText(data.transcription || "");
-          new Audio(data.audio_url).play();
-        } else {
-          setError(data.error || "Failed to process audio file.");
-        }
-      })
-      .catch(() => setError("Connection error."));
+  const handleMouseLeave = () => {
+    const card = cardRef.current;
+    if (!card) return;
+    card.style.transform = `perspective(600px) rotateX(0deg) rotateY(0deg)`;
   };
 
   useEffect(() => {
@@ -255,23 +335,25 @@ const TranslatorPage = () => {
     };
   }, [recording]);
 
-  // --- ADD THIS FUNCTION ---
-  const playAudio = () => {
+  // browser TTS mapping (optional, left as fallback)
+  const langMap = {
+    en: "en-US", hi: "hi-IN", te: "te-IN", ta: "ta-IN", bn: "bn-IN",
+    ur: "ur-PK", kn: "kn-IN", ml: "ml-IN", es: "es-ES", fr: "fr-FR",
+    de: "de-DE", ar: "ar-SA", zh: "zh-CN", ru: "ru-RU", ja: "ja-JP"
+  };
+
+  const playBrowserTTS = () => {
     if (!translatedText) return;
-    // For TTS playback from translatedText string
     const utterance = new SpeechSynthesisUtterance(translatedText);
-    // Set language for speech synthesis if possible
-    utterance.lang = targetLanguage;
+    utterance.lang = langMap[targetLanguage] || "en-US";
+    window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
   };
-  // --- END ---
 
   return (
     <div className="translator-3d-wrapper">
       {Object.values(languages).map((lang, i) => (
-        <span key={i} className="float-bubble" style={{ "--i": i }}>
-          {lang}
-        </span>
+        <span key={i} className="float-bubble" style={{ "--i": i }}>{lang}</span>
       ))}
 
       <motion.div
@@ -289,34 +371,16 @@ const TranslatorPage = () => {
 
         <div className="selectors">
           <select value={sourceLanguage} onChange={(e) => setSourceLanguage(e.target.value)}>
-            {Object.entries(languages).map(([code, name]) => (
-              <option key={code} value={code}>
-                {name}
-              </option>
-            ))}
+            {Object.entries(languages).map(([code, name]) => <option key={code} value={code}>{name}</option>)}
           </select>
           <select value={targetLanguage} onChange={(e) => setTargetLanguage(e.target.value)}>
-            {Object.entries(languages).map(([code, name]) => (
-              <option key={code} value={code}>
-                {name}
-              </option>
-            ))}
+            {Object.entries(languages).map(([code, name]) => <option key={code} value={code}>{name}</option>)}
           </select>
         </div>
 
-        <motion.textarea
-          placeholder="Type or speak text..."
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-        />
+        <motion.textarea placeholder="Type or speak text..." value={text} onChange={(e) => setText(e.target.value)} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} />
 
-        <canvas
-          ref={canvasRef}
-          className="waveform-canvas"
-          style={{ width: "100%", height: "80px", marginBottom: "20px", borderRadius: "12px", background: "rgba(0,0,0,0.1)" }}
-        />
+        <canvas ref={canvasRef} className="waveform-canvas" style={{ width: "100%", height: "80px", marginBottom: "20px", borderRadius: "12px", background: "rgba(0,0,0,0.1)" }} />
 
         <div className="btn-row">
           <motion.button className="glow-btn" onClick={handleTranslate} whileHover={{ scale: 1.05 }}>
@@ -349,11 +413,27 @@ const TranslatorPage = () => {
           {displayedText || "Your translated text will appear here."}
         </motion.div>
 
-        {translatedText && (
-          <motion.button className="speak-btn" onClick={playAudio} whileHover={{ scale: 1.1 }}>
-            <FaVolumeUp /> Speak Again
-          </motion.button>
-        )}
+        {/* hidden audio element for backend-generated audio */}
+        <audio ref={audioRef} src={audioUrl} style={{ display: "none" }} />
+
+        {/* Play / Download controls for backend audio */}
+        <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+          {audioUrl ? (
+            <>
+              <button className="speak-btn" onClick={togglePlay}>
+                {isPlaying ? <><FaPause /> Pause</> : <><FaPlay /> Play</>}
+              </button>
+              <button className="speak-btn" onClick={downloadAudio}><FaDownload /> Download</button>
+            </>
+          ) : (
+            <small style={{ color: "#888" }}>Generated audio will appear here</small>
+          )}
+
+          {/* Browser TTS fallback */}
+          {translatedText && (
+            <button className="speak-btn" onClick={playBrowserTTS}><FaVolumeUp /> Speak Again</button>
+          )}
+        </div>
       </motion.div>
     </div>
   );
